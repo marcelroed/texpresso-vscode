@@ -465,7 +465,8 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!editor) return;
 		
 		const trackedFile = registry?.findByPath(editor.document.uri.fsPath);
-		const lineNumber = editor.selection.active.line;
+		// TeXpresso expects 1-based line numbers (as recorded by TeX); VS Code positions are 0-based.
+		const lineNumber = editor.selection.active.line + 1;
 		
 		if (editor.document === activeEditor?.document) {
 			if (!previouslySentLineNumber || previouslySentLineNumber !== lineNumber) {
