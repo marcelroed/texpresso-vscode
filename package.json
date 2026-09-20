@@ -3,7 +3,7 @@
   "displayName": "TeXpresso",
   "description": "Basic extension for interacting with TeXpresso for live previewing LaTeX documents",
   "publisher": "DominikPeters",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "icon": "./assets/texpresso_logo.png",
   "homepage": "https://github.com/DominikPeters/texpresso-vscode",
   "repository": {
@@ -121,6 +121,17 @@
           "type": "boolean",
           "default": false,
           "description": "Specifies whether the preview should use the same color theme as the editor (if activated), or the default theme (otherwise)"
+        },
+        "texpresso.includePaths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Extra directories passed to TeXpresso as -I include paths. Files such as a .bbl or .aux from a full build placed there resolve citations and references in the preview. ${workspaceFolder} is expanded; relative paths are resolved against the main file's directory."
+        },
+        "texpresso.rerunOnIdle": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ask TeXpresso to rerun the document when it is idle and the .aux file changed, so cross-references and the table of contents converge (sends the 'rerun' command at startup)."
         },
         "texpresso.useChangeRangeMode": {
           "type": "boolean",

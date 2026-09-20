@@ -232,6 +232,15 @@ export function activate(context: vscode.ExtensionContext) {
 			if (useChangeRangeMode) {
 				args.push('-lines');
 			}
+			// Extra lookup directories (-I): e.g. the build directory of a full
+			// build, so its .bbl and .aux resolve citations and references.
+			const includePaths = (vscode.workspace.getConfiguration('texpresso').get('includePaths') as string[]) || [];
+			const workspaceFolder = vscode.workspace.getWorkspaceFolder(activeEditor.document.uri)?.uri.fsPath ?? documentDir;
+			for (const includePath of includePaths) {
+				const expanded = includePath.replace(/\$\{workspaceFolder\}/g, workspaceFolder);
+				const resolved = path.isAbsolute(expanded) ? expanded : path.resolve(documentDir, expanded);
+				args.push('-I', useWSL ? new WSLPathConverter(true).toWSL(resolved) : resolved);
+			}
 			args.push(filePath);
 			
 			if (!useWSL) {
@@ -246,6 +255,11 @@ export function activate(context: vscode.ExtensionContext) {
 				outputChannel.append(`Starting TeXpresso with command: ${command} ${args.join(' ')}\n`);
 				outputChannel.append(`Options: ${useChangeRangeMode ? 'Using change-range mode' : 'Using byte-based changes'}\n`);
 				outputChannel.append(`File: ${filePath}\n`);
+
+				// Converge cross-references: rerun when idle if the .aux changed.
+				if (vscode.workspace.getConfiguration('texpresso').get('rerunOnIdle') as boolean) {
+					sendCommand(['rerun', true]);
+				}
 
 				let buffer = '';
 				texpresso.stdout.on('data', data => {
