@@ -474,22 +474,28 @@ export function activate(context: vscode.ExtensionContext) {
 	 ***********************************
 	 **********************************/
 
-	let previouslySentLineNumber: number | undefined;
+	let previouslySentPosition: string | undefined;
 	function doSyncTeXForward(editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor) {
 		if (!editor) return;
 		
 		const trackedFile = registry?.findByPath(editor.document.uri.fsPath);
 		// TeXpresso expects 1-based line numbers (as recorded by TeX); VS Code positions are 0-based.
-		const lineNumber = editor.selection.active.line + 1;
+		const active = editor.selection.active;
+		const lineNumber = active.line + 1;
+		// The column is the number of characters before the cursor. TeX counts
+		// Unicode scalar values, VS Code counts UTF-16 code units, so convert.
+		const lineText = editor.document.lineAt(active.line).text;
+		const column = Array.from(lineText.slice(0, active.character)).length;
 		
 		if (editor.document === activeEditor?.document) {
-			if (!previouslySentLineNumber || previouslySentLineNumber !== lineNumber) {
-				previouslySentLineNumber = lineNumber;
-				const message = ["synctex-forward", filePath, lineNumber];
+			const position = `${lineNumber}:${column}`;
+			if (previouslySentPosition !== position) {
+				previouslySentPosition = position;
+				const message = ["synctex-forward", filePath, lineNumber, column];
 				sendCommand(message);
 			}
 		} else if (trackedFile) {
-			const message = ["synctex-forward", trackedFile.absolutePath, lineNumber];
+			const message = ["synctex-forward", trackedFile.absolutePath, lineNumber, column];
 			sendCommand(message);
 		}
 	}
