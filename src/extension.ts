@@ -161,10 +161,43 @@ export function activate(context: vscode.ExtensionContext) {
 
 	let activeEditor: vscode.TextEditor | undefined;
 
+	// A full build writing a new .bbl into an include path (e.g. after adding
+	// a citation) makes TeXpresso rescan its inputs, so the preview picks it up.
+	let includeWatchers: vscode.FileSystemWatcher[] = [];
+	let rescanTimer: NodeJS.Timeout | undefined;
+
+	function disposeIncludeWatchers() {
+		includeWatchers.forEach(w => w.dispose());
+		includeWatchers = [];
+		if (rescanTimer) {
+			clearTimeout(rescanTimer);
+			rescanTimer = undefined;
+		}
+	}
+
+	function watchIncludePath(dir: string) {
+		const watcher = vscode.workspace.createFileSystemWatcher(
+			new vscode.RelativePattern(vscode.Uri.file(dir), '*.bbl'));
+		const onChange = (uri: vscode.Uri) => {
+			if (rescanTimer) {
+				clearTimeout(rescanTimer);
+			}
+			rescanTimer = setTimeout(() => {
+				rescanTimer = undefined;
+				outputChannel.appendLine(`${uri.fsPath} changed, rescanning`);
+				sendCommand(['rescan']);
+			}, 200);
+		};
+		watcher.onDidChange(onChange);
+		watcher.onDidCreate(onChange);
+		includeWatchers.push(watcher);
+	}
+
 	async function startDocumentFromEditor(editor: vscode.TextEditor | undefined) {
 		if (texpresso) {
 			texpresso.kill();
 		}
+		disposeIncludeWatchers();
 
 		if (editor) {
 			activeEditor = editor;
@@ -240,6 +273,7 @@ export function activate(context: vscode.ExtensionContext) {
 				const expanded = includePath.replace(/\$\{workspaceFolder\}/g, workspaceFolder);
 				const resolved = path.isAbsolute(expanded) ? expanded : path.resolve(documentDir, expanded);
 				args.push('-I', useWSL ? new WSLPathConverter(true).toWSL(resolved) : resolved);
+				watchIncludePath(resolved);
 			}
 			args.push(filePath);
 			
@@ -720,6 +754,7 @@ export function activate(context: vscode.ExtensionContext) {
 		if (texpresso) {
 			texpresso.kill();
 		}
+		disposeIncludeWatchers();
 		activeEditor = undefined;
 		registry?.clear();
 		vscode.commands.executeCommand('setContext', 'texpresso.inActiveEditor', false);

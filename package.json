@@ -3,7 +3,7 @@
   "displayName": "TeXpresso",
   "description": "Basic extension for interacting with TeXpresso for live previewing LaTeX documents",
   "publisher": "DominikPeters",
-  "version": "1.8.4",
+  "version": "1.8.5",
   "icon": "./assets/texpresso_logo.png",
   "homepage": "https://github.com/DominikPeters/texpresso-vscode",
   "repository": {
@@ -126,7 +126,7 @@
           "type": "array",
           "items": { "type": "string" },
           "default": [],
-          "description": "Extra directories passed to TeXpresso as -I include paths. Files such as a .bbl or .aux from a full build placed there resolve citations and references in the preview. ${workspaceFolder} is expanded; relative paths are resolved against the main file's directory."
+          "description": "Extra directories passed to TeXpresso as -I include paths. Files such as a .bbl or .aux from a full build placed there resolve citations and references in the preview. When a .bbl in one of them changes, TeXpresso rescans its inputs. ${workspaceFolder} is expanded; relative paths are resolved against the main file's directory."
         },
         "texpresso.rerunOnIdle": {
           "type": "boolean",
