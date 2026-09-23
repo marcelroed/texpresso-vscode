@@ -39,6 +39,12 @@ class WSLPathConverter {
 	}
 }
 
+// Documents such as the old side of a git diff (scheme `git:`) share the fsPath of the
+// real file but hold different contents, so only `file:` documents stand for files on disk.
+function isFileDocument(doc: vscode.TextDocument): boolean {
+	return doc.uri.scheme === 'file';
+}
+
 interface TrackedFile {
 	index: number;
 	relativePath: string;
@@ -60,9 +66,9 @@ class FileRegistry {
 	addFile(index: number, relativePath: string, sendCommand: (cmd: any[]) => void) {
 		const absolutePath = this.resolvePath(relativePath);
 		const isOpen = vscode.workspace.textDocuments.some(doc => 
-			doc.uri.fsPath === absolutePath);
+			isFileDocument(doc) && doc.uri.fsPath === absolutePath);
 		const document = isOpen ? vscode.workspace.textDocuments.find(doc => 
-			doc.uri.fsPath === absolutePath) : undefined;
+			isFileDocument(doc) && doc.uri.fsPath === absolutePath) : undefined;
 
 		const file: TrackedFile = {
 			index, relativePath, absolutePath, isOpen, document,
@@ -430,7 +436,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.workspace.onDidOpenTextDocument(doc => {
-			if (registry) {
+			if (registry && isFileDocument(doc)) {
 				registry.updateDocument(doc.uri.fsPath, doc, true, sendCommand);
 			}
 		})
@@ -438,14 +444,14 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.workspace.onDidCloseTextDocument(doc => {
-			if (registry) {
+			if (registry && isFileDocument(doc)) {
 				registry.updateDocument(doc.uri.fsPath, undefined, false, sendCommand);
 			}
 		})
 	);
 
 	vscode.workspace.onDidChangeTextDocument(event => {
-		const trackedFile = registry?.findByPath(event.document.uri.fsPath);
+		const trackedFile = isFileDocument(event.document) ? registry?.findByPath(event.document.uri.fsPath) : undefined;
 		
 		if (activeEditor && event.document === activeEditor.document) {
 			texpresso?.stdin?.cork();
@@ -512,7 +518,7 @@ export function activate(context: vscode.ExtensionContext) {
 	function doSyncTeXForward(editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor) {
 		if (!editor) return;
 		
-		const trackedFile = registry?.findByPath(editor.document.uri.fsPath);
+		const trackedFile = isFileDocument(editor.document) ? registry?.findByPath(editor.document.uri.fsPath) : undefined;
 		// TeXpresso expects 1-based line numbers (as recorded by TeX); VS Code positions are 0-based.
 		const active = editor.selection.active;
 		const lineNumber = active.line + 1;
@@ -537,7 +543,7 @@ export function activate(context: vscode.ExtensionContext) {
 	vscode.window.onDidChangeTextEditorSelection(event => {
 		if (vscode.workspace.getConfiguration('texpresso').get('syncTeXForwardOnSelection') as boolean) {
 			const isMainDoc = activeEditor && event.textEditor.document === activeEditor.document;
-			const isTrackedFile = registry?.findByPath(event.textEditor.document.uri.fsPath);
+			const isTrackedFile = isFileDocument(event.textEditor.document) && registry?.findByPath(event.textEditor.document.uri.fsPath);
 			
 			if (isMainDoc || isTrackedFile) {
 				doSyncTeXForward(event.textEditor);
